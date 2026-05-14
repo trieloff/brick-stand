@@ -257,8 +257,13 @@ const cavityColor = "#2a2f36"; // dark — reads as void inside the body
 let result;
 if (Detail === "preview") {
   // group() preserves identities/colors without a boolean — fast in WASM.
+  // When hollow, render the body translucent so the cavity child shows
+  // through.  When solid, render opaque.
+  const bodyShape = (Hollow && cavity)
+    ? body.color(bodyColor).material({ opacity: 0.35 })
+    : body.color(bodyColor);
   const children = [
-    { name: "body", shape: body.color(bodyColor) },
+    { name: "body", shape: bodyShape },
     ...previewPegs.map((p, i) => ({ name: `peg-${i}`, shape: p.color(pegColor) })),
     ...previewMagnets.map((m, i) => ({ name: `magnet-${i}`, shape: m.color(magnetColor) })),
   ];
