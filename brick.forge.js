@@ -14,6 +14,13 @@
 const g = require("./geometry.js");
 
 const Side = Param.choice("Side", "left", ["left", "right"]);
+// "preview"  = bare wedge silhouette (no mount features, no fillets).
+//              Studio-friendly: avoids the heavy boolean cascade that the
+//              browser WASM kernel takes 2-3 minutes on.
+// "features" = wedge + pegs + magnet pockets + foot pockets, no fillet.
+//              Use in CLI to inspect mounts; usually too slow for studio.
+// "finished" = features + top-edge fillet. CLI-only; needs --backend occt.
+const Detail = Param.choice("Detail", "preview", ["preview", "features", "finished"]);
 
 const w = g.FOOTPRINT_WIDTH;
 const d = g.FOOTPRINT_DEPTH;
@@ -28,10 +35,7 @@ let body = roundedRect(w, d, r)
 
 const a = g.PLANE_A_LEFT;
 const b = g.PLANE_B;
-// Top mating plane: z = a*x + b*y. trimByPlane keeps the positive side of the
-// plane (where n · p > 0).  With normal (a, b, -1) and offset 0 we keep the
-// half-space a*x + b*y - z > 0, i.e. z < a*x + b*y — the wedge BELOW the
-// keyboard plane.
+const kbN = g.KB_PLANE_NORMAL_UP;
 body = body.trimByPlane([a, b, -1], 0);
 
 // ---------- 2. Mount features (pegs up, magnet pockets down). ----------
@@ -48,21 +52,24 @@ body = body.trimByPlane([a, b, -1], 0);
 //   3. Translate it to the world point on the tilted top face at (x, y).
 //      The base of the peg / top of the pocket sits exactly on the plane.
 
-const kbN = g.KB_PLANE_NORMAL_UP; // unit vector, points up out of brick
-
 const pegRadius = g.PEG_DIAMETER_MM / 2;
 const pegHeight = g.PEG_HEIGHT_MM;
 const pocketRadius = g.MAGNET_POCKET_DIAMETER_MM / 2;
 const pocketDepth = g.MAGNET_POCKET_DEPTH_MM;
 
-// Build pegs: cylinder grows in +kbN direction, base on the tilted plane.
+if (Detail !== "preview") {
+// Build pegs: a short cylindrical shaft topped by a full hemisphere.  Total
+// peg height stays at PEG_HEIGHT_MM (shaft + hemisphere = pegHeight).  The
+// dome aids insertion into the keyboard receptacle and gives the part a
+// machined-pin look instead of a sharp-edged stub.
+const pegShaftHeight = Math.max(pegHeight - pegRadius, 0.05);
 for (const [px, py] of g.pegWorldCenters()) {
   const pz = g.plane(Side, px, py);
-  const peg = cylinder(pegHeight, pegRadius)
+  const shaft = cylinder(pegShaftHeight, pegRadius);
+  const cap = sphere(pegRadius).translate(0, 0, pegShaftHeight);
+  const peg = shaft.add(cap)
     .pointAlong(kbN)
     .translate(px, py, pz);
-  // .add() instead of union() — the trimmed body needs the method form so the
-  // result keeps the wedge instead of collapsing to the tool operand.
   body = body.add(peg);
 }
 
@@ -109,24 +116,70 @@ for (const [mx, my] of g.magnetWorldCenters()) {
     body = body.subtract(foot);
   }
 }
+} // end if Detail !== "preview"
 
-// ---------- 4. Top-edge break (chamfer around the slanted top face). ----
-// Done last, after pegs and pockets.  Wrap in try/catch — on a complex BRep
-// this can fail; accept a sharp edge rather than fail the build.
+// ---------- 4. Top-edge fillet (round the perimeter of the slanted top). --
+// Skipped in "fast" mode — fillet on this BRep is ~30s in the WASM browser
+// kernel and times out the studio.  OCCT (CLI) handles it in ~1s.
+if (Detail === "finished") {
+// Round the convex edges where the tilted top face meets the vertical
+// perimeter sides.  These edges are adjacent to the top face whose outward
+// normal is roughly (a, b, -1) normalized.  Try fillet first; if OCCT
+// refuses on this BRep, fall back to chamfer; on total failure, leave the
+// top sharp rather than break the build.
+const topFaceNormal = kbN; // top-face outward normal points up out of brick
+const topFilletRadius = 1.5;
+let edgesRounded = false;
 try {
   const raw = selectEdges(body, {
     convex: true,
-    perpendicular: [0, 0, 1],
-    angleTolerance: 25,
+    adjacentFaceNormal: topFaceNormal,
+    angleTolerance: 30,
     minLength: 0.5,
-  }).filter(e => e.midpoint && e.midpoint[2] > 1.0);
+  });
   const merged = coalesceEdges(raw);
-  if (merged.length > 0 && merged.length < 80) {
-    body = chamfer(body, g.TOP_CHAMFER_MM_PRODUCTION, merged);
+  if (merged.length > 0 && merged.length < 200) {
+    body = fillet(body, topFilletRadius, merged);
+    edgesRounded = true;
   }
 } catch (err) {
   void err;
 }
+if (!edgesRounded) {
+  try {
+    const raw = selectEdges(body, {
+      convex: true,
+      perpendicular: [0, 0, 1],
+      angleTolerance: 30,
+      minLength: 0.5,
+    }).filter(e => e.midpoint && e.midpoint[2] > 1.0);
+    const merged = coalesceEdges(raw);
+    if (merged.length > 0 && merged.length < 200) {
+      body = fillet(body, topFilletRadius, merged);
+      edgesRounded = true;
+    }
+  } catch (err) {
+    void err;
+  }
+}
+if (!edgesRounded) {
+  try {
+    const raw = selectEdges(body, {
+      convex: true,
+      adjacentFaceNormal: topFaceNormal,
+      angleTolerance: 30,
+      minLength: 0.5,
+    });
+    const merged = coalesceEdges(raw);
+    if (merged.length > 0 && merged.length < 200) {
+      body = chamfer(body, g.TOP_CHAMFER_MM_PRODUCTION, merged);
+    }
+  } catch (err) {
+    void err;
+  }
+}
+
+} // end if Detail === "finished"
 
 // ---------- 5. Mirror for right-hand side. ----------
 if (Side === "right") {
