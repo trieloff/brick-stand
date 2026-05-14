@@ -21,11 +21,17 @@ const Side = Param.choice("Side", "left", ["left", "right"]);
 //              minutes; reach for this via CLI only.
 // "finished" = features + top-edge fillet.  CLI + OCCT only.
 const Detail = Param.choice("Detail", "preview", ["preview", "features", "finished"]);
+// FDM prototype hollow: subtract a same-shape wedge inset by WALL_T from
+// every surface.  Saves ~80% of filament.  In preview the cavity renders
+// as a separate translucent child so its extent is visible without paying
+// for the boolean.  In features/finished it's a real subtract (CLI/OCCT).
+const Hollow = Param.bool("Hollow", true);
 
 const w = g.FOOTPRINT_WIDTH;
 const d = g.FOOTPRINT_DEPTH;
 const r = g.PERIMETER_CORNER_RADIUS_MM;
 const ceilingZ = g.TOP_Z_CEILING_MM;
+const WALL_T = 3.0;
 
 // ---------- 1. Outer wedge as a planar-trimmed prism. ----------
 // Rounded-rect prism, then trim by the tilted top plane z = a*x + b*y.
@@ -37,6 +43,25 @@ const a = g.PLANE_A_LEFT;
 const b = g.PLANE_B;
 const kbN = g.KB_PLANE_NORMAL_UP;
 body = body.trimByPlane([a, b, -1], 0);
+
+// Inner cavity wedge: same construction inset by WALL_T on every face.
+// Width and depth shrink by 2*WALL_T; corner radius shrinks by WALL_T.
+// Base raised by WALL_T.  Top trimmed by the same tilted plane but offset
+// down along its normal by WALL_T.  trimByPlane's offset argument is along
+// the supplied (unnormalized) normal vector, so we scale by |normal| to
+// get a wall thickness of WALL_T perpendicular to the keyboard surface.
+const planeNormalLen = Math.hypot(a, b, 1);
+function buildCavity() {
+  const innerW = w - 2 * WALL_T;
+  const innerD = d - 2 * WALL_T;
+  const innerR = Math.max(r - WALL_T, 0.5);
+  let cav = roundedRect(innerW, innerD, innerR)
+    .extrude(ceilingZ)
+    .translate(w / 2, d / 2, WALL_T);
+  cav = cav.trimByPlane([a, b, -1], WALL_T * planeNormalLen);
+  return cav;
+}
+const cavity = Hollow ? buildCavity() : null;
 
 // ---------- 2. Mount features (pegs up, magnet pockets down). ----------
 //
@@ -154,6 +179,11 @@ for (const [mx, my] of g.magnetWorldCenters()) {
     body = body.subtract(foot);
   }
 }
+
+// Hollow out the interior — real boolean, only in features/finished.
+if (Hollow && cavity) {
+  body = body.subtract(cavity);
+}
 } // end if Detail !== "preview"
 
 // ---------- 4. Top-edge fillet (round the perimeter of the slanted top). --
@@ -223,14 +253,19 @@ if (!edgesRounded) {
 const bodyColor = "#8b94a3";
 const pegColor = "#b8c0cc";
 const magnetColor = "#d4a857"; // brass-ish, reads clearly against steel body
+const cavityColor = "#2a2f36"; // dark — reads as void inside the body
 let result;
 if (Detail === "preview") {
   // group() preserves identities/colors without a boolean — fast in WASM.
-  result = group(
+  const children = [
     { name: "body", shape: body.color(bodyColor) },
     ...previewPegs.map((p, i) => ({ name: `peg-${i}`, shape: p.color(pegColor) })),
     ...previewMagnets.map((m, i) => ({ name: `magnet-${i}`, shape: m.color(magnetColor) })),
-  );
+  ];
+  if (Hollow && cavity) {
+    children.push({ name: "cavity", shape: cavity.color(cavityColor) });
+  }
+  result = group(...children);
 } else {
   result = body.color(bodyColor);
 }
