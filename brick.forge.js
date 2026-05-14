@@ -14,12 +14,12 @@
 const g = require("./geometry.js");
 
 const Side = Param.choice("Side", "left", ["left", "right"]);
-// "preview"  = bare wedge silhouette (no mount features, no fillets).
-//              Studio-friendly: avoids the heavy boolean cascade that the
-//              browser WASM kernel takes 2-3 minutes on.
-// "features" = wedge + pegs + magnet pockets + foot pockets, no fillet.
-//              Use in CLI to inspect mounts; usually too slow for studio.
-// "finished" = features + top-edge fillet. CLI-only; needs --backend occt.
+// "preview"  = wedge + the 4 pegs (additions only — no subtractive ops, so
+//              the WASM kernel cascade stays short).  Studio-friendly.
+// "features" = preview + magnet pockets + foot pockets.  The pocket
+//              subtracts after a trimByPlane drag the browser kernel into
+//              minutes; reach for this via CLI only.
+// "finished" = features + top-edge fillet.  CLI + OCCT only.
 const Detail = Param.choice("Detail", "preview", ["preview", "features", "finished"]);
 
 const w = g.FOOTPRINT_WIDTH;
@@ -57,20 +57,35 @@ const pegHeight = g.PEG_HEIGHT_MM;
 const pocketRadius = g.MAGNET_POCKET_DIAMETER_MM / 2;
 const pocketDepth = g.MAGNET_POCKET_DEPTH_MM;
 
-if (Detail !== "preview") {
 // Build pegs: a short cylindrical shaft topped by a full hemisphere.  Total
 // peg height stays at PEG_HEIGHT_MM (shaft + hemisphere = pegHeight).  The
 // dome aids insertion into the keyboard receptacle and gives the part a
 // machined-pin look instead of a sharp-edged stub.
+//
+// In "preview" mode we collect the pegs separately and group() them with the
+// body at the end — no boolean, fast in the WASM kernel.  In features and
+// finished modes we union via .add() so the part is a single solid (the
+// honest representation for CNC).
 const pegShaftHeight = Math.max(pegHeight - pegRadius, 0.05);
+const previewPegs = [];
 for (const [px, py] of g.pegWorldCenters()) {
   const pz = g.plane(Side, px, py);
-  const shaft = cylinder(pegShaftHeight, pegRadius);
-  const cap = sphere(pegRadius).translate(0, 0, pegShaftHeight);
-  const peg = shaft.add(cap)
-    .pointAlong(kbN)
-    .translate(px, py, pz);
-  body = body.add(peg);
+  if (Detail === "preview") {
+    // Preview: a single cylinder, no sphere cap.  Even the cylinder+sphere
+    // union per peg pushed the WASM kernel into ~30s; a single primitive is
+    // cheap and good enough to communicate peg position and orientation.
+    const peg = cylinder(pegHeight, pegRadius)
+      .pointAlong(kbN)
+      .translate(px, py, pz);
+    previewPegs.push(peg);
+  } else {
+    const shaft = cylinder(pegShaftHeight, pegRadius);
+    const cap = sphere(pegRadius).translate(0, 0, pegShaftHeight);
+    const peg = shaft.add(cap)
+      .pointAlong(kbN)
+      .translate(px, py, pz);
+    body = body.add(peg);
+  }
 }
 
 // Magnet pockets: cylinder grows in +kbN direction, but we want the TOP of
@@ -86,6 +101,7 @@ for (const [px, py] of g.pegWorldCenters()) {
 const POCKET_OVERSHOOT = 0.3;
 const pocketCutLen = pocketDepth + POCKET_OVERSHOOT;
 
+if (Detail !== "preview") {
 for (const [mx, my] of g.magnetWorldCenters()) {
   const mz = g.plane(Side, mx, my);
   // Base of the cutting cylinder, in world coords: shift `pocketDepth` along
@@ -181,9 +197,22 @@ if (!edgesRounded) {
 
 } // end if Detail === "finished"
 
-// ---------- 5. Mirror for right-hand side. ----------
-if (Side === "right") {
-  body = body.mirrorThrough([w / 2, d / 2, 0], [1, 0, 0]);
+// ---------- 5. Compose & mirror. ----------
+const bodyColor = "#8b94a3";
+const pegColor = "#b8c0cc";
+let result;
+if (Detail === "preview") {
+  // group() preserves identities/colors without a boolean — fast in WASM.
+  result = group(
+    { name: "body", shape: body.color(bodyColor) },
+    ...previewPegs.map((p, i) => ({ name: `peg-${i}`, shape: p.color(pegColor) })),
+  );
+} else {
+  result = body.color(bodyColor);
 }
 
-return body.color("#8b94a3");
+if (Side === "right") {
+  result = result.mirrorThrough([w / 2, d / 2, 0], [1, 0, 0]);
+}
+
+return result;
