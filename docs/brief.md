@@ -38,22 +38,27 @@ Derived plane:
 
 These angles are **fixed** in the design — no adjustment mechanism. The brick *is* the angle.
 
-## Attachment interface
+## Attachment interface — official ZSA tripod-mount pattern
 
-Same pattern as mark's tripod mount (`reference/ZSA Voyager Tripod Mount.stl`):
+The brick replicates the interface of ZSA's own tripod-mount plate (which the designer owns and measured). Centered at **(63.10, 81.90)** in the left-half frame. See `docs/geometry-facts.md` for verified positions.
 
-- **5 magnets** (10 mm Ø × 3 mm thick neodymium, N42) press-fit into pockets on the upper mating face. Pull the Voyager bottom plate down.
-- **4 guide pins** for XY alignment. In the printed prototype, integral to the part (printed pins). In the stainless production part, press-fit dowel pins (e.g., 3 mm Ø × 6 mm hardened steel) into reamed holes.
-- Mating face geometry matches the Voyager's bottom plate magnet/leg-socket pattern. Exact pocket positions to be extracted from `reference/bottom_plate_left.STL` / `bottom_plate_right.STL`.
+- **4 registration pegs**, Ø 2.15 mm × 1.5 mm tall, at the corners of a **33.26 × 33.26 mm square**. Slip-fit into the four small receptacles in the Voyager bottom plate (verified at z=0.11 in the reference STL).
+  - Prototype: pegs printed integral to the brick body.
+  - Production: pegs machined integral to the stainless body (or, alternatively, press-fit dowel pins into reamed holes if 3-axis CNC can't reach such fine integral features cleanly; pin choice deferred to manufacturing review).
+- **4 magnets**, Ø 5 mm × 2 mm N42 neodymium, in a diamond pattern at **r = 9 mm from zone center**, at the four cardinal directions. Magnet midpoint-to-midpoint between opposing magnets = 18 mm. Pockets are Ø 5.1 mm × 2.1 mm deep, in the top mating face. Magnets pull against the corresponding magnets / steel pucks ZSA placed in the keyboard at matching positions.
+- **No central feature engaged.** The keyboard has a ~Ø 3.8 mm tripod-screw recess at the zone center; the brick does not engage this.
+
+The four corner pegs handle XY registration and anti-rotation. The four diamond magnets handle Z retention. No additional alignment features are needed.
 
 ## Geometry constraints
 
-- **Footprint envelope:** stays within the Voyager half's vertical projection (≤ 138 × 137 mm). The brick should not be visibly wider than the keyboard.
-- **Mating face:** a plane that, when the keyboard is set on it, places the four bottom-plate corners at the measured heights above the desk.
-- **Base face:** parallel to the desktop (Z = 0 plane), full flat contact.
-- **Body:** swept/filled volume between mating face and base face, with the visual language of a solid milled brick — chamfered top edges (e.g., 2 mm × 45°), generous corner radii on the perimeter (e.g., 6 mm), no visible draft, no decorative ribs.
-- **Prototype-only:** internal hollowing for FDM printability (Vase-mode or 15–25 % infill achieved via a single offset shell ~3–4 mm thick). Hollowing must NOT change the external geometry — same brick from the outside.
-- **Production:** solid stainless steel. Optional: machined recess on the bottom (e.g., 5 mm deep) leaving a ~5 mm wall around the perimeter, both to reduce mass slightly and to ensure 4-point contact on uneven desks.
+- **Footprint envelope:** matches the full Voyager half's vertical projection — 138 × 137 mm. The brick fills the entire shadow under the keyboard. This is intentional: the keyboard sits flush on the brick along its whole base, the brick reads as a chunky block of metal, and the "brick" identity is preserved.
+- **Top face:** a single tilted plane at the measured posture, matching the keyboard's bottom plane exactly. Surface continuous edge-to-edge (no raised mating pad — the keyboard rests on the entire top face, with the attachment features sunk into a centered 38 × 38 mm zone).
+- **Mating zone** (centered at (63.10, 81.90) in keyboard coords): 4 pegs at the 33.26 × 33.26 mm square corners stick up 1.5 mm from the top face; 4 magnet pockets (Ø 5.1 × 2.1) recessed into the top face in the diamond pattern.
+- **Base face:** parallel to the desktop (Z = 0 plane), full flat contact across the whole footprint.
+- **Body:** swept/filled volume between top plane and base, with the visual language of a solid milled block — chamfered top edges (2 mm × 45° for steel, 1.5 mm fillet for FDM), perimeter corner radii 6 mm, no visible draft, no decorative ribs. Corner heights: front-pinky 0 mm, rear-pinky 17 mm, front-thumb 79 mm, rear-thumb ~96 mm.
+- **Prototype-only:** internal hollowing for FDM printability — target ~3 mm shell wall. External geometry must remain identical to production.
+- **Production:** solid stainless steel. Optional machined recess on the bottom (5 mm deep, 5 mm perimeter wall) for mass and 4-point desk contact.
 
 ## Feet / desk interface
 
@@ -78,22 +83,23 @@ Multi-file ForgeCAD project:
 
 | Item | Spec | Qty | Notes |
 |---|---|---|---|
-| Brick body | 316 or 304 stainless steel, single piece | 1 | CNC from billet OR investment cast + finish-machined on mating face, magnet pockets, pin holes, and bottom |
-| Neodymium magnet | 10 mm Ø × 3 mm, N42, axially magnetized | 5 | Press-fit or epoxy in pockets; polarity to match Voyager bottom-plate magnets |
-| Dowel pin | DIN 6325 / ISO 8734, 3 mm Ø × 6 mm, hardened steel | 4 | Press-fit into H7 reamed holes |
-| Urethane bumper foot | 3M Bumpon SJ5012 (black) | 4 | Self-adhesive into bottom pockets |
+| Brick body | 316 or 304 stainless steel, single piece | 1 | CNC from billet OR investment cast + finish-machined on top mating face, peg posts, magnet pockets, bottom |
+| Neodymium magnet | Ø 5 mm × 2 mm, N42, axially magnetized | 4 | Press-fit or epoxy into pockets; polarity to match the keyboard's internal magnets at the same positions |
+| Urethane bumper foot | 3M Bumpon SJ5012 (black, Ø 10 × 2 mm) | 4 | Self-adhesive into bottom pockets |
 
-(Prototype BOM substitutes printed body + printed pins, same magnets, same feet.)
+(Prototype BOM: printed body with integral pegs, same magnets, same feet. The 4 corner pegs are integral to the body in both processes — no separate dowel pins.)
 
 ## Validation criteria
 
-- Mating face places the four Voyager corners at 0/17/79/~96 mm ± 0.5 mm against a flat desk.
-- No collision between brick body and Voyager underside, USB-C cable strain relief, or per-half cable when seated.
-- Center of mass over the base footprint with at least 5 mm safety margin in all directions when keyboard is mounted (tip-over check at 29.8° tent).
-- Wall thickness ≥ 3 mm everywhere in the FDM prototype shell. Minimum cross-section ≥ 5 mm everywhere in the production solid (handles cutter access).
-- Magnet pockets: 10.1 mm Ø × 3.1 mm depth (press-fit). Pin holes: 3.0 mm Ø H7 production / 3.2 mm prototype.
+- Top face places the four Voyager corners at 0/17/79/~96 mm ± 0.5 mm against a flat desk.
+- 4 corner pegs fall on the 33.26 × 33.26 mm square at (63.10, 81.90) ± 0.1 mm, slip-fit into the keyboard's peg receptacles.
+- 4 magnet pockets at the cardinal r=9 mm positions ± 0.1 mm.
+- No collision between brick top face and Voyager underside other than the intended flush contact.
+- Center of mass over the base footprint with at least 10 mm safety margin in all directions when keyboard is mounted (tip-over check at 29.8° tent).
+- Wall thickness ≥ 3 mm everywhere in the FDM prototype shell. Minimum cross-section ≥ 5 mm everywhere in the production solid.
+- Magnet pockets: Ø 5.1 mm × 2.1 mm depth (press-fit). Peg shafts: Ø 2.15 mm × 1.5 mm tall.
 - Bottom face flat to ± 0.2 mm prototype / ± 0.05 mm production.
 
 ## Final state target
 
-**`BEST-EFFORT BUILD CANDIDATE`** — exact magnet and pin positions on the Voyager bottom plate must be extracted from the reference STL before the design can be called build-ready. Everything else (posture geometry, attachment philosophy, manufacturing path, BOM) is locked.
+**`BUILD-READY` for the prototype**, **`BEST-EFFORT BUILD CANDIDATE` for production** — the steel manufacturing review (CNC vs cast + finish, integral pegs vs press-fit dowels) needs a real shop quote before final lock.
