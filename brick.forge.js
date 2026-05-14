@@ -101,6 +101,28 @@ for (const [px, py] of g.pegWorldCenters()) {
 const POCKET_OVERSHOOT = 0.3;
 const pocketCutLen = pocketDepth + POCKET_OVERSHOOT;
 
+// Preview: instead of subtracting the pocket cylinders (which is the kernel
+// killer), render the magnets themselves at their final position — top face
+// flush with the keyboard plane, body extending MAGNET_THICKNESS into the
+// brick.  Visually equivalent to seeing the pockets, much cheaper.
+const previewMagnets = [];
+if (Detail === "preview") {
+  const magnetRadius = g.MAGNET_DIAMETER_MM / 2;
+  const magnetThickness = g.MAGNET_THICKNESS_MM;
+  for (const [mx, my] of g.magnetWorldCenters()) {
+    const mz = g.plane(Side, mx, my);
+    // Place the magnet cylinder so its top is on the tilted plane and its
+    // body sits inside the brick (axis = keyboard normal).
+    const baseX = mx - kbN[0] * magnetThickness;
+    const baseY = my - kbN[1] * magnetThickness;
+    const baseZ = mz - kbN[2] * magnetThickness;
+    const magnet = cylinder(magnetThickness, magnetRadius)
+      .pointAlong(kbN)
+      .translate(baseX, baseY, baseZ);
+    previewMagnets.push(magnet);
+  }
+}
+
 if (Detail !== "preview") {
 for (const [mx, my] of g.magnetWorldCenters()) {
   const mz = g.plane(Side, mx, my);
@@ -200,12 +222,14 @@ if (!edgesRounded) {
 // ---------- 5. Compose & mirror. ----------
 const bodyColor = "#8b94a3";
 const pegColor = "#b8c0cc";
+const magnetColor = "#d4a857"; // brass-ish, reads clearly against steel body
 let result;
 if (Detail === "preview") {
   // group() preserves identities/colors without a boolean — fast in WASM.
   result = group(
     { name: "body", shape: body.color(bodyColor) },
     ...previewPegs.map((p, i) => ({ name: `peg-${i}`, shape: p.color(pegColor) })),
+    ...previewMagnets.map((m, i) => ({ name: `magnet-${i}`, shape: m.color(magnetColor) })),
   );
 } else {
   result = body.color(bodyColor);
