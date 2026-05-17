@@ -75,18 +75,18 @@ const magnetCenters = magnetCentersKb.map(([x, y]) => g.projectKbToDesk(x, y));
 // keyboard-plane normal).  Outer face of the bar sits flush against the
 // keyboard's inner vertical edge (X ≈ 116.18 mm in left-half local frame,
 // measured from the STL outline).
-// Actual bar is 20 × 80 × 3 mm; we cut a slightly larger clearance pocket.
-// CLR adds margin on every face so the real bar slides in with play and
-// the subtract reliably breaks the top surface.
+// Actual bar is 20 × 80 × 3 mm; we cut a clearance pocket that extends
+// generously OUTWARD (toward the index-side edge of the brick) so the cut
+// slices clean through the outer wall instead of leaving a thin prism
+// overhang where the cut box's outer face meets the brick's tilted top.
 const NAV_DEPTH_X  = 20;
 const NAV_LENGTH_Y = 80;
 const NAV_THICK_Z  = 3;
 const CLR = 0.5;
+const OUTWARD_EXTEND = 80; // mm past the bar's outer X face — through the wall
 function buildNavigatorClearance() {
-  const dx = NAV_DEPTH_X + 2 * CLR;
+  const dx = NAV_DEPTH_X + CLR + OUTWARD_EXTEND;
   const dy = NAV_LENGTH_Y + 2 * CLR;
-  // Cut extends from CLR above the keyboard plane (clean top break) down to
-  // CLR past the bar's bottom (so the slot has 0.5 mm overshoot below).
   const dz = NAV_THICK_Z + 2 * CLR;
   let cut = box(dx, dy, dz)
     .translate(NavigatorX - CLR, NavigatorY - CLR, -(NAV_THICK_Z + CLR));
