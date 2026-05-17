@@ -65,17 +65,25 @@ const magnetCentersKb = g.magnetWorldCenters(); // keyboard-local coords
 const magnetCenters = magnetCentersKb.map(([x, y]) => g.projectKbToDesk(x, y));
 
 // ---------- Navigator reservation block ----------
-// 80 × 20 × 3 mm bar that sits flush UNDER the keyboard along the rear
-// edge — 80 mm long in X (keyboard width), 20 mm deep in Y (perpendicular
-// to the rear), 3 mm thick perpendicular to the keyboard surface.  Starts
-// `NavigatorInset` mm in from the left (pinky) corner; rear edge of the
-// bar is flush with the keyboard's rear edge.
-const NAV_LENGTH_X = 80;
-const NAV_DEPTH_Y  = 20;
+// 20 × 80 × 3 mm bar lying flush UNDER the keyboard along its index-finger
+// (inner / thumb-facing) side.  20 mm deep perpendicular to that edge,
+// 80 mm long parallel to the edge (along Y), 3 mm thick (along the
+// keyboard-plane normal).  Outer face of the bar sits flush against the
+// keyboard's inner vertical edge (X ≈ 116.18 mm in left-half local frame,
+// measured from the STL outline).
+const NAV_DEPTH_X  = 20;
+const NAV_LENGTH_Y = 80;
 const NAV_THICK_Z  = 3;
+const INDEX_SIDE_X = 116.18; // straight inner edge of the bottom plate
 function buildNavigatorBar() {
-  let bar = box(NAV_LENGTH_X, NAV_DEPTH_Y, NAV_THICK_Z)
-    .translate(NavigatorInset, g.FOOTPRINT_DEPTH - NAV_DEPTH_Y, -NAV_THICK_Z);
+  // bar's rear edge sits `NavigatorInset` mm in from the keyboard's rear,
+  // extending NAV_LENGTH_Y forward from there.
+  let bar = box(NAV_DEPTH_X, NAV_LENGTH_Y, NAV_THICK_Z)
+    .translate(
+      INDEX_SIDE_X - NAV_DEPTH_X,
+      g.FOOTPRINT_DEPTH - NavigatorInset - NAV_LENGTH_Y,
+      -NAV_THICK_Z,
+    );
   bar = bar.rotate([0, 1, 0], -g.TENT_DEG, { pivot: [0, 0, 0] });
   bar = bar.rotate([1, 0, 0],  g.TILT_DEG, { pivot: [0, 0, 0] });
   return bar;
