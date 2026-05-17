@@ -40,7 +40,7 @@ const PegSpacing = Param.number("PegSpacing", 30.0, { min: 20, max: 50, step: 0.
 // preview the bar is rendered as a separate orange visualization; in
 // features/finished it's a real subtract.
 const ReserveNavigator = Param.bool("ReserveNavigator", true);
-const NavigatorY = Param.number("NavigatorY", 68.5, { min: 0, max: 137, step: 0.5, unit: "mm" });
+const NavigatorInset = Param.number("NavigatorInset", 20.0, { min: 0, max: 80, step: 0.5, unit: "mm" });
 
 const w = g.FOOTPRINT_WIDTH;
 const d = g.FOOTPRINT_DEPTH;
@@ -65,21 +65,17 @@ const magnetCentersKb = g.magnetWorldCenters(); // keyboard-local coords
 const magnetCenters = magnetCentersKb.map(([x, y]) => g.projectKbToDesk(x, y));
 
 // ---------- Navigator reservation block ----------
-// 20 × 80 × 3 mm, sitting flush UNDER the keyboard (top face on the
-// keyboard's bottom plane) along the thumb/index edge.  Build in
-// keyboard-local frame, then rotate into world posture about the origin.
-const NAV_W = 20;
-const NAV_L = 80;
-const NAV_T = 3;
-const navTopXkb = g.FOOTPRINT_WIDTH; // thumb edge (left half local frame)
+// 80 × 20 × 3 mm bar that sits flush UNDER the keyboard along the rear
+// edge — 80 mm long in X (keyboard width), 20 mm deep in Y (perpendicular
+// to the rear), 3 mm thick perpendicular to the keyboard surface.  Starts
+// `NavigatorInset` mm in from the left (pinky) corner; rear edge of the
+// bar is flush with the keyboard's rear edge.
+const NAV_LENGTH_X = 80;
+const NAV_DEPTH_Y  = 20;
+const NAV_THICK_Z  = 3;
 function buildNavigatorBar() {
-  // box at origin oriented so its long axis is +Y (length=NAV_L), wide is +X
-  // (width=NAV_W), thin is +Z (thickness=NAV_T).  Place it so its top face
-  // (z_local=0) lines up with the keyboard's bottom face (also z_local=0 in
-  // local frame), with the bar tucked against the thumb edge.
-  let bar = box(NAV_W, NAV_L, NAV_T)
-    .translate(navTopXkb - NAV_W, NavigatorY - NAV_L / 2, -NAV_T);
-  // Apply the same tent+tilt rotations the mockup uses, about world origin.
+  let bar = box(NAV_LENGTH_X, NAV_DEPTH_Y, NAV_THICK_Z)
+    .translate(NavigatorInset, g.FOOTPRINT_DEPTH - NAV_DEPTH_Y, -NAV_THICK_Z);
   bar = bar.rotate([0, 1, 0], -g.TENT_DEG, { pivot: [0, 0, 0] });
   bar = bar.rotate([1, 0, 0],  g.TILT_DEG, { pivot: [0, 0, 0] });
   return bar;
