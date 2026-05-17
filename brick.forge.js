@@ -43,8 +43,8 @@ const ReserveNavigator = Param.bool("ReserveNavigator", true);
 // Bar's bottom-left corner in keyboard-local XY (front-pinky-corner origin).
 // Defaults place it flush against the keyboard's inner edge (X ≈ 96.18 mm,
 // outer face at 116.18 mm) and 20 mm forward of the rear edge.
-const NavigatorX = Param.number("NavigatorX", 96.18, { min: 0, max: 138, step: 0.5, unit: "mm" });
-const NavigatorY = Param.number("NavigatorY", 36.87, { min: 0, max: 137, step: 0.5, unit: "mm" });
+const NavigatorX = Param.number("NavigatorX", 105.0, { min: 0, max: 138, step: 0.5, unit: "mm" });
+const NavigatorY = Param.number("NavigatorY", 66.0, { min: 0, max: 137, step: 0.5, unit: "mm" });
 
 const w = g.FOOTPRINT_WIDTH;
 const d = g.FOOTPRINT_DEPTH;
@@ -75,17 +75,26 @@ const magnetCenters = magnetCentersKb.map(([x, y]) => g.projectKbToDesk(x, y));
 // keyboard-plane normal).  Outer face of the bar sits flush against the
 // keyboard's inner vertical edge (X ≈ 116.18 mm in left-half local frame,
 // measured from the STL outline).
+// Actual bar is 20 × 80 × 3 mm; we cut a slightly larger clearance pocket.
+// CLR adds margin on every face so the real bar slides in with play and
+// the subtract reliably breaks the top surface.
 const NAV_DEPTH_X  = 20;
 const NAV_LENGTH_Y = 80;
 const NAV_THICK_Z  = 3;
-function buildNavigatorBar() {
-  let bar = box(NAV_DEPTH_X, NAV_LENGTH_Y, NAV_THICK_Z)
-    .translate(NavigatorX, NavigatorY, -NAV_THICK_Z);
-  bar = bar.rotate([0, 1, 0], -g.TENT_DEG, { pivot: [0, 0, 0] });
-  bar = bar.rotate([1, 0, 0],  g.TILT_DEG, { pivot: [0, 0, 0] });
-  return bar;
+const CLR = 0.5;
+function buildNavigatorClearance() {
+  const dx = NAV_DEPTH_X + 2 * CLR;
+  const dy = NAV_LENGTH_Y + 2 * CLR;
+  // Cut extends from CLR above the keyboard plane (clean top break) down to
+  // CLR past the bar's bottom (so the slot has 0.5 mm overshoot below).
+  const dz = NAV_THICK_Z + 2 * CLR;
+  let cut = box(dx, dy, dz)
+    .translate(NavigatorX - CLR, NavigatorY - CLR, -(NAV_THICK_Z + CLR));
+  cut = cut.rotate([0, 1, 0], -g.TENT_DEG, { pivot: [0, 0, 0] });
+  cut = cut.rotate([1, 0, 0],  g.TILT_DEG, { pivot: [0, 0, 0] });
+  return cut;
 }
-const navigatorBar = ReserveNavigator ? buildNavigatorBar() : null;
+const navigatorCut = ReserveNavigator ? buildNavigatorClearance() : null;
 
 // ---------- 1. Outer wedge as a planar-trimmed prism. ----------
 // Body footprint = the Voyager outline PROJECTED onto the desk plane at
@@ -253,12 +262,14 @@ if (Hollow && cavity) {
   body = body.subtract(cavity);
 }
 
-// Carve out the Navigator-bar volume so the trackball-mount strip can sit
-// flush against the keyboard without interference.
-if (ReserveNavigator && navigatorBar) {
-  body = body.subtract(navigatorBar);
-}
 } // end if Detail !== "preview"
+
+// Carve out the Navigator-bar clearance — applies in ALL modes so the
+// preview shows the final pocket directly.  A single box.subtract on the
+// trimmed body is cheap (~few hundred ms in the WASM kernel).
+if (ReserveNavigator && navigatorCut) {
+  body = body.subtract(navigatorCut);
+}
 
 // ---------- 4. Top-edge fillet (round the perimeter of the slanted top). --
 // Skipped in "fast" mode — fillet on this BRep is ~30s in the WASM browser
@@ -345,9 +356,7 @@ if (Detail === "preview") {
   if (showCav) {
     children.push({ name: "cavity", shape: cavity.color(cavityColor) });
   }
-  if (ReserveNavigator && navigatorBar) {
-    children.push({ name: "navigator", shape: navigatorBar.color("#e0913a") });
-  }
+  // Navigator bar visualization removed — its pocket is now part of the body.
   result = group(...children);
 } else {
   result = body.color(bodyColor);
