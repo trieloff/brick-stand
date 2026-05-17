@@ -324,7 +324,7 @@ if (!edgesRounded) {
 
 // ---------- 5. Compose & mirror. ----------
 const bodyColor = "#8b94a3";
-const pegColor = "#b8c0cc";
+const pegColor = "#ff4da6";
 const magnetColor = "#d4a857"; // brass-ish, reads clearly against steel body
 const cavityColor = "#2a2f36"; // dark — reads as void inside the body
 let result;
