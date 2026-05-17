@@ -34,6 +34,10 @@ const ShowCavity = Param.bool("ShowCavity", false);
 // (48.099, 66.911) / (78.099, 66.911) / (48.099, 96.911) / (78.099, 96.911)
 // — 30.000 mm square centered on (63.099, 81.911).
 const PegSpacing = Param.number("PegSpacing", 30.0, { min: 20, max: 50, step: 0.1, unit: "mm" });
+// Peg diameter (mm).  Receptacle bore is Ø 2.6 mm.  For FDM use ~2.3 mm
+// (FDM over-extrudes small features).  For CNC stainless use 2.5 mm
+// (~50 µm slip-fit).
+const PegDiameter = Param.number("PegDiameter", 2.5, { min: 1.5, max: 3.5, step: 0.05, unit: "mm" });
 // Reserve a 20 × 80 × 3 mm strip along the keyboard's index-finger edge for
 // the ZSA Navigator (trackball) bar.  The bar sits flush underneath the
 // keyboard along that edge — the brick must not occupy that volume.  In
@@ -177,7 +181,7 @@ const cavity = Hollow ? buildCavity() : null;
 //   3. Translate it to the world point on the tilted top face at (x, y).
 //      The base of the peg / top of the pocket sits exactly on the plane.
 
-const pegRadius = g.PEG_DIAMETER_MM / 2;
+const pegRadius = PegDiameter / 2;
 const pegHeight = g.PEG_HEIGHT_MM;
 const pocketRadius = g.MAGNET_POCKET_DIAMETER_MM / 2;
 const pocketDepth = g.MAGNET_POCKET_DEPTH_MM;
@@ -298,61 +302,45 @@ if (ReserveNavigator && navigatorCut) {
   body = body.subtract(navigatorCut);
 }
 
-// ---------- 4. Top-edge fillet (round the perimeter of the slanted top). --
-// Skipped in "fast" mode — fillet on this BRep is ~30s in the WASM browser
-// kernel and times out the studio.  OCCT (CLI) handles it in ~1s.
+// ---------- 4. Edge break (chamfer every convex edge). ----------
+// Skipped in "preview" — chamfer on this BRep is too slow in the WASM
+// browser kernel.  Finished mode applies a 0.8 mm chamfer to every convex
+// edge of the body so no sharp edges remain on either prototype or
+// production parts.
 if (Detail === "finished") {
-// Round the convex edges where the tilted top face meets the vertical
-// perimeter sides.  These edges are adjacent to the top face whose outward
-// normal is roughly (a, b, -1) normalized.  Try fillet first; if OCCT
-// refuses on this BRep, fall back to chamfer; on total failure, leave the
-// top sharp rather than break the build.
-const topFaceNormal = kbN; // top-face outward normal points up out of brick
-const topFilletRadius = 1.5;
+// Edge-by-edge chamfer.  A whole-set chamfer of 108 long convex edges
+// fails in OCCT due to vertex-sharing conflicts at corners; chamfering one
+// edge at a time lets OCCT handle each isolated and skips the ones that
+// would create a degeneracy.
+const EDGE_CHAMFER = 0.6;
 let edgesRounded = false;
 try {
-  const raw = selectEdges(body, {
-    convex: true,
-    adjacentFaceNormal: topFaceNormal,
-    angleTolerance: 30,
-    minLength: 0.5,
-  });
+  const raw = selectEdges(body, { convex: true, minLength: 4.0 });
   const merged = coalesceEdges(raw);
-  if (merged.length > 0 && merged.length < 200) {
-    body = fillet(body, topFilletRadius, merged);
-    edgesRounded = true;
+  for (const edge of merged) {
+    try {
+      body = chamfer(body, EDGE_CHAMFER, [edge]);
+      edgesRounded = true;
+    } catch (e) {
+      void e;
+    }
   }
 } catch (err) {
   void err;
 }
+// Fallback: if the full-body chamfer failed, at least try chamfering the
+// top perimeter so the most visible edge isn't sharp.
 if (!edgesRounded) {
   try {
     const raw = selectEdges(body, {
       convex: true,
-      perpendicular: [0, 0, 1],
-      angleTolerance: 30,
-      minLength: 0.5,
-    }).filter(e => e.midpoint && e.midpoint[2] > 1.0);
-    const merged = coalesceEdges(raw);
-    if (merged.length > 0 && merged.length < 200) {
-      body = fillet(body, topFilletRadius, merged);
-      edgesRounded = true;
-    }
-  } catch (err) {
-    void err;
-  }
-}
-if (!edgesRounded) {
-  try {
-    const raw = selectEdges(body, {
-      convex: true,
-      adjacentFaceNormal: topFaceNormal,
+      adjacentFaceNormal: kbN,
       angleTolerance: 30,
       minLength: 0.5,
     });
     const merged = coalesceEdges(raw);
     if (merged.length > 0 && merged.length < 200) {
-      body = chamfer(body, g.TOP_CHAMFER_MM_PRODUCTION, merged);
+      body = chamfer(body, EDGE_CHAMFER, merged);
     }
   } catch (err) {
     void err;
