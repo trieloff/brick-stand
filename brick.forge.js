@@ -254,19 +254,21 @@ if (Hollow && cavity) {
 } // end if Detail !== "preview"
 
 // ---------- Bumper-foot pockets on the bottom (all modes). ----------
-// Four shallow cylinder subtracts on the desk-facing face.  Positions are
-// pinned to the projected bbox so they stay inside the brick's silhouette.
+// Four shallow cylinder subtracts on the desk-facing face.  Positions
+// chosen in the keyboard-local frame at points known to be inside the
+// outline (the projected-bbox corners fall outside the polygon since the
+// silhouette is non-rectangular), then projected to desk XY.
 {
   const footR = g.FOOT_POCKET_DIAMETER_MM / 2;
   const footDepth = g.FOOT_POCKET_DEPTH_MM;
-  const inset = g.FOOT_PATTERN_INSET_MM;
-  const footPositions = [
-    [projMinX + inset, projMinY + inset],
-    [projMaxX - inset, projMinY + inset],
-    [projMinX + inset, projMaxY - inset],
-    [projMaxX - inset, projMaxY - inset],
+  const footKbPositions = [
+    [ 12,  55],   // front-pinky
+    [108,  30],   // front-thumb (safely inside thumb-cluster bulge)
+    [ 12, 128],   // rear-pinky
+    [105, 105],   // rear-thumb (inside the main body, clear of thumb step)
   ];
-  for (const [fx, fy] of footPositions) {
+  for (const [kx, ky] of footKbPositions) {
+    const [fx, fy] = g.projectKbToDesk(kx, ky);
     const foot = cylinder(footDepth + 0.2, footR)
       .translate(fx, fy, -0.1);
     body = body.subtract(foot);
