@@ -15,7 +15,7 @@ const g = require("./geometry.js");
 // NOTE: run with `forgecad run --backend occt`.
 
 const Side = Param.choice("Side", "left", ["left", "right"]);
-const ShowVoyagerMockup = Param.bool("ShowVoyagerMockup", false);
+const ShowVoyagerMockup = Param.bool("ShowVoyagerMockup", true);
 const ShowPair = Param.bool("ShowPair", false);
 
 // ---------- BOM (one part / one half, solid stainless) ----------

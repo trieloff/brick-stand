@@ -26,6 +26,10 @@ const Detail = Param.choice("Detail", "preview", ["preview", "features", "finish
 // as a separate translucent child so its extent is visible without paying
 // for the boolean.  In features/finished it's a real subtract (CLI/OCCT).
 const Hollow = Param.bool("Hollow", true);
+// Peg square edge length, in mm.  The designer measured ~35 mm against the
+// physical ZSA tripod-mount plate.  Exposed as a slider so the brick can
+// be visually aligned against the imported Voyager mockup.
+const PegSpacing = Param.number("PegSpacing", 35.0, { min: 20, max: 50, step: 0.1, unit: "mm" });
 
 const w = g.FOOTPRINT_WIDTH;
 const d = g.FOOTPRINT_DEPTH;
@@ -33,11 +37,22 @@ const r = g.PERIMETER_CORNER_RADIUS_MM;
 const ceilingZ = g.TOP_Z_CEILING_MM;
 const WALL_T = 3.0;
 
+// Local peg-world-center helper using the live PegSpacing param.
+const pegHalf = PegSpacing / 2;
+const [czX, czY] = g.MOUNT_ZONE_CENTER_LEFT;
+const pegCenters = [
+  [czX - pegHalf, czY - pegHalf],
+  [czX + pegHalf, czY - pegHalf],
+  [czX + pegHalf, czY + pegHalf],
+  [czX - pegHalf, czY + pegHalf],
+];
+
 // ---------- 1. Outer wedge as a planar-trimmed prism. ----------
-// Rounded-rect prism, then trim by the tilted top plane z = a*x + b*y.
-let body = roundedRect(w, d, r)
-  .extrude(ceilingZ)
-  .translate(w / 2, d / 2, 0);
+// Body footprint = the actual Voyager outline polygon (left half, local
+// frame, already absolute coords) extruded up, then trimmed by the tilted
+// top plane.  The keyboard's stepped silhouette is preserved so the brick
+// hides cleanly under it.
+let body = polygon(g.VOYAGER_OUTLINE_LEFT).extrude(ceilingZ);
 
 const a = g.PLANE_A_LEFT;
 const b = g.PLANE_B;
@@ -52,8 +67,13 @@ body = body.trimByPlane([a, b, -1], 0);
 // get a wall thickness of WALL_T perpendicular to the keyboard surface.
 const planeNormalLen = Math.hypot(a, b, 1);
 function buildCavity() {
-  const innerW = w - 2 * WALL_T;
-  const innerD = d - 2 * WALL_T;
+  // Cavity: inner outline = a roundedRect sized to fit inside the polygon
+  // outline with WALL_T margin.  This won't perfectly mirror the contour
+  // (the thumb-cluster step, etc.) but the bulk of the brick is hollowed
+  // and filament saving is ~80%.  A future iteration could compute a
+  // proper polygon offset.
+  const innerW = w - 2 * WALL_T - 6;   // extra margin around contour bulges
+  const innerD = d - 2 * WALL_T - 6;
   const innerR = Math.max(r - WALL_T, 0.5);
   let cav = roundedRect(innerW, innerD, innerR)
     .extrude(ceilingZ)
@@ -93,7 +113,7 @@ const pocketDepth = g.MAGNET_POCKET_DEPTH_MM;
 // honest representation for CNC).
 const pegShaftHeight = Math.max(pegHeight - pegRadius, 0.05);
 const previewPegs = [];
-for (const [px, py] of g.pegWorldCenters()) {
+for (const [px, py] of pegCenters) {
   const pz = g.plane(Side, px, py);
   if (Detail === "preview") {
     // Preview: a single cylinder, no sphere cap.  Even the cylinder+sphere

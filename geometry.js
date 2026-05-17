@@ -114,6 +114,77 @@ const FOOT_PATTERN_INSET_MM = 12.0; // inset from the bbox corners
 // External outline.
 const PERIMETER_CORNER_RADIUS_MM = 6.0;
 
+// True Voyager footprint outline (left half, local frame), extracted from
+// the bottom face of reference/bottom_plate_left.STL via a Python edge-loop
+// walk and simplified to ~63 vertices (eps=0.5 mm).  CCW winding (kernel
+// auto-corrects).  Use as the brick's silhouette so the brick hides
+// underneath the keyboard without overhanging the thumb-cluster step.
+const VOYAGER_OUTLINE_LEFT = [
+  [   0.01,   46.61],
+  [   0.91,   45.71],
+  [  40.05,   45.73],
+  [  40.77,   49.25],
+  [  42.94,   50.31],
+  [  66.73,   50.31],
+  [  68.81,   49.77],
+  [  89.50,   38.30],
+  [  91.33,   36.29],
+  [  91.69,   34.58],
+  [  91.78,   26.17],
+  [  92.59,   25.20],
+  [ 102.89,   19.47],
+  [ 104.54,   17.58],
+  [ 104.91,   15.87],
+  [ 104.93,    7.72],
+  [ 105.80,    6.49],
+  [ 114.12,    2.03],
+  [ 115.63,    3.10],
+  [ 121.67,    0.03],
+  [ 122.19,    0.45],
+  [ 128.69,   12.08],
+  [ 130.69,   12.08],
+  [ 137.75,   24.87],
+  [ 136.95,   26.95],
+  [ 124.84,   33.66],
+  [ 123.01,   35.67],
+  [ 122.65,   37.38],
+  [ 122.63,   45.54],
+  [ 121.59,   46.86],
+  [ 117.72,   49.10],
+  [ 116.31,   51.33],
+  [ 116.18,   56.51],
+  [ 116.18,  105.52],
+  [ 114.39,  106.69],
+  [ 114.33,  123.15],
+  [ 113.99,  123.35],
+  [  99.94,  123.35],
+  [  97.62,  124.63],
+  [  96.94,  127.35],
+  [  82.44,  127.35],
+  [  79.35,  128.68],
+  [  78.18,  131.61],
+  [  77.82,  135.09],
+  [  76.44,  135.75],
+  [  75.35,  135.75],
+  [  75.10,  136.87],
+  [  64.23,  136.62],
+  [  64.23,  135.75],
+  [   0.91,  135.75],
+  [   0.01,  134.85],
+  [   0.51,  129.79],
+  [   2.51,  128.79],
+  [   2.51,  120.75],
+  [   2.51,  119.75],
+  [   0.01,  119.25],
+  [   0.01,   66.12],
+  [   0.51,   65.71],
+  [   2.51,   64.71],
+  [   2.51,   56.66],
+  [   2.51,   55.66],
+  [   0.01,   55.16],
+  [   0.01,   49.10],
+];
+
 // Top-edge break (solid-steel production target only — FDM omitted in this
 // solid-only revision).
 const TOP_CHAMFER_MM_PRODUCTION = 2.0;
@@ -164,6 +235,7 @@ module.exports = {
   FOOT_PATTERN_INSET_MM,
   // outline / breaks
   PERIMETER_CORNER_RADIUS_MM,
+  VOYAGER_OUTLINE_LEFT,
   TOP_CHAMFER_MM_PRODUCTION,
   // mirror
   mirrorAcrossXcenter,
