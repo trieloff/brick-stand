@@ -246,16 +246,25 @@ for (const [mx, my] of magnetCenters) {
   body = body.subtract(pocket);
 }
 
-// ---------- 3. Bumper-foot pockets on the bottom. ----------
+// Hollow out the interior — real boolean, only in features/finished.
+if (Hollow && cavity) {
+  body = body.subtract(cavity);
+}
+
+} // end if Detail !== "preview"
+
+// ---------- Bumper-foot pockets on the bottom (all modes). ----------
+// Four shallow cylinder subtracts on the desk-facing face.  Positions are
+// pinned to the projected bbox so they stay inside the brick's silhouette.
 {
   const footR = g.FOOT_POCKET_DIAMETER_MM / 2;
   const footDepth = g.FOOT_POCKET_DEPTH_MM;
   const inset = g.FOOT_PATTERN_INSET_MM;
   const footPositions = [
-    [inset, inset],
-    [w - inset, inset],
-    [inset, d - inset],
-    [w - inset, d - inset],
+    [projMinX + inset, projMinY + inset],
+    [projMaxX - inset, projMinY + inset],
+    [projMinX + inset, projMaxY - inset],
+    [projMaxX - inset, projMaxY - inset],
   ];
   for (const [fx, fy] of footPositions) {
     const foot = cylinder(footDepth + 0.2, footR)
@@ -263,13 +272,6 @@ for (const [mx, my] of magnetCenters) {
     body = body.subtract(foot);
   }
 }
-
-// Hollow out the interior — real boolean, only in features/finished.
-if (Hollow && cavity) {
-  body = body.subtract(cavity);
-}
-
-} // end if Detail !== "preview"
 
 // Carve out the Navigator-bar clearance — applies in ALL modes so the
 // preview shows the final pocket directly.  A single box.subtract on the
