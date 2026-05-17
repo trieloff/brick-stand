@@ -85,11 +85,18 @@ const NAV_THICK_Z  = 3;
 const CLR = 0.5;
 const OUTWARD_EXTEND = 80; // mm past the bar's outer X face — through the wall
 function buildNavigatorClearance() {
-  const dx = NAV_DEPTH_X + CLR + OUTWARD_EXTEND;
+  // box() is centered on XY (base at Z=0).  To extend only outward (+X)
+  // we keep the inner face at its original position and shift the box
+  // center by OUTWARD_EXTEND/2 in +X.
+  const dx = NAV_DEPTH_X + 2 * CLR + OUTWARD_EXTEND;
   const dy = NAV_LENGTH_Y + 2 * CLR;
   const dz = NAV_THICK_Z + 2 * CLR;
   let cut = box(dx, dy, dz)
-    .translate(NavigatorX - CLR, NavigatorY - CLR, -(NAV_THICK_Z + CLR));
+    .translate(
+      NavigatorX - CLR + OUTWARD_EXTEND / 2,
+      NavigatorY - CLR,
+      -(NAV_THICK_Z + CLR),
+    );
   cut = cut.rotate([0, 1, 0], -g.TENT_DEG, { pivot: [0, 0, 0] });
   cut = cut.rotate([1, 0, 0],  g.TILT_DEG, { pivot: [0, 0, 0] });
   return cut;
