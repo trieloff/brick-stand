@@ -30,6 +30,13 @@ const Hollow = Param.bool("Hollow", true);
 // physical ZSA tripod-mount plate.  Exposed as a slider so the brick can
 // be visually aligned against the imported Voyager mockup.
 const PegSpacing = Param.number("PegSpacing", 35.0, { min: 20, max: 50, step: 0.1, unit: "mm" });
+// Reserve a 20 × 80 × 3 mm strip along the keyboard's index-finger edge for
+// the ZSA Navigator (trackball) bar.  The bar sits flush underneath the
+// keyboard along that edge — the brick must not occupy that volume.  In
+// preview the bar is rendered as a separate orange visualization; in
+// features/finished it's a real subtract.
+const ReserveNavigator = Param.bool("ReserveNavigator", true);
+const NavigatorY = Param.number("NavigatorY", 68.5, { min: 0, max: 137, step: 0.5, unit: "mm" });
 
 const w = g.FOOTPRINT_WIDTH;
 const d = g.FOOTPRINT_DEPTH;
@@ -52,6 +59,28 @@ const pegCentersKb = [
 const pegCenters = pegCentersKb.map(([x, y]) => g.projectKbToDesk(x, y));
 const magnetCentersKb = g.magnetWorldCenters(); // keyboard-local coords
 const magnetCenters = magnetCentersKb.map(([x, y]) => g.projectKbToDesk(x, y));
+
+// ---------- Navigator reservation block ----------
+// 20 × 80 × 3 mm, sitting flush UNDER the keyboard (top face on the
+// keyboard's bottom plane) along the thumb/index edge.  Build in
+// keyboard-local frame, then rotate into world posture about the origin.
+const NAV_W = 20;
+const NAV_L = 80;
+const NAV_T = 3;
+const navTopXkb = g.FOOTPRINT_WIDTH; // thumb edge (left half local frame)
+function buildNavigatorBar() {
+  // box at origin oriented so its long axis is +Y (length=NAV_L), wide is +X
+  // (width=NAV_W), thin is +Z (thickness=NAV_T).  Place it so its top face
+  // (z_local=0) lines up with the keyboard's bottom face (also z_local=0 in
+  // local frame), with the bar tucked against the thumb edge.
+  let bar = box(NAV_W, NAV_L, NAV_T)
+    .translate(navTopXkb - NAV_W, NavigatorY - NAV_L / 2, -NAV_T);
+  // Apply the same tent+tilt rotations the mockup uses, about world origin.
+  bar = bar.rotate([0, 1, 0], -g.TENT_DEG, { pivot: [0, 0, 0] });
+  bar = bar.rotate([1, 0, 0],  g.TILT_DEG, { pivot: [0, 0, 0] });
+  return bar;
+}
+const navigatorBar = ReserveNavigator ? buildNavigatorBar() : null;
 
 // ---------- 1. Outer wedge as a planar-trimmed prism. ----------
 // Body footprint = the Voyager outline PROJECTED onto the desk plane at
@@ -218,6 +247,12 @@ for (const [mx, my] of magnetCenters) {
 if (Hollow && cavity) {
   body = body.subtract(cavity);
 }
+
+// Carve out the Navigator-bar volume so the trackball-mount strip can sit
+// flush against the keyboard without interference.
+if (ReserveNavigator && navigatorBar) {
+  body = body.subtract(navigatorBar);
+}
 } // end if Detail !== "preview"
 
 // ---------- 4. Top-edge fillet (round the perimeter of the slanted top). --
@@ -303,6 +338,9 @@ if (Detail === "preview") {
   ];
   if (Hollow && cavity) {
     children.push({ name: "cavity", shape: cavity.color(cavityColor) });
+  }
+  if (ReserveNavigator && navigatorBar) {
+    children.push({ name: "navigator", shape: navigatorBar.color("#e0913a") });
   }
   result = group(...children);
 } else {
