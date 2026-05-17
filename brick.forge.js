@@ -130,6 +130,13 @@ const projMinX = Math.min(..._projXs), projMaxX = Math.max(..._projXs);
 const projMinY = Math.min(..._projYs), projMaxY = Math.max(..._projYs);
 const projW = projMaxX - projMinX;
 const projD = projMaxY - projMinY;
+// Rib parameters — internal support walls inside the hollow.  Two thin
+// vertical walls oriented in the YZ plane, splitting the cavity into 3
+// chambers along X.  Reduces FDM bridge spans across the tilted inner
+// ceiling from ~projW (~120 mm) to ~projW/3 (~40 mm), within reach of
+// reliable bridging.
+const RIB_THICKNESS = 2.5;
+const RIB_X_FRACTIONS = [1 / 3, 2 / 3];
 function buildCavity() {
   // Cavity: roundedRect sized to fit inside the projected outline bbox with
   // generous margin (WALL_T + bulge slack), centered on the projected bbox.
@@ -143,6 +150,15 @@ function buildCavity() {
     .extrude(ceilingZ)
     .translate(projMinX + projW / 2, projMinY + projD / 2, WALL_T);
   cav = cav.trimByPlane([a, b, -1], WALL_T * planeNormalLen);
+
+  // Carve rib slots out of the cavity — the rib material stays in the body
+  // because (body - cavity_with_slots) keeps the slot regions solid.
+  for (const f of RIB_X_FRACTIONS) {
+    const ribX = projMinX + projW * f;
+    const rib = box(RIB_THICKNESS, projD * 2, ceilingZ * 2)
+      .translate(ribX, projMinY + projD / 2, 0);
+    cav = cav.subtract(rib);
+  }
   return cav;
 }
 const cavity = Hollow ? buildCavity() : null;
