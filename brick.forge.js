@@ -38,21 +38,28 @@ const ceilingZ = g.TOP_Z_CEILING_MM;
 const WALL_T = 3.0;
 
 // Local peg-world-center helper using the live PegSpacing param.
+// Peg positions originate in the keyboard's local frame, then get projected
+// onto the desk for the brick's world frame (so the peg lands where the
+// keyboard's mating zone projects on the desk).
 const pegHalf = PegSpacing / 2;
 const [czX, czY] = g.MOUNT_ZONE_CENTER_LEFT;
-const pegCenters = [
+const pegCentersKb = [
   [czX - pegHalf, czY - pegHalf],
   [czX + pegHalf, czY - pegHalf],
   [czX + pegHalf, czY + pegHalf],
   [czX - pegHalf, czY + pegHalf],
 ];
+const pegCenters = pegCentersKb.map(([x, y]) => g.projectKbToDesk(x, y));
+const magnetCentersKb = g.magnetWorldCenters(); // keyboard-local coords
+const magnetCenters = magnetCentersKb.map(([x, y]) => g.projectKbToDesk(x, y));
 
 // ---------- 1. Outer wedge as a planar-trimmed prism. ----------
-// Body footprint = the actual Voyager outline polygon (left half, local
-// frame, already absolute coords) extruded up, then trimmed by the tilted
-// top plane.  The keyboard's stepped silhouette is preserved so the brick
-// hides cleanly under it.
-let body = polygon(g.VOYAGER_OUTLINE_LEFT).extrude(ceilingZ);
+// Body footprint = the Voyager outline PROJECTED onto the desk plane at
+// posture (compressed in X by cos(tent), in Y by cos(tilt) minus a small
+// X-cross term).  Extruded up vertically, then trimmed by the tilted top
+// plane.  This way the brick's XY shadow == the keyboard's XY shadow at
+// posture — the keyboard sits flush, no overhang.
+let body = polygon(g.VOYAGER_OUTLINE_LEFT_PROJECTED).extrude(ceilingZ);
 
 const a = g.PLANE_A_LEFT;
 const b = g.PLANE_B;
@@ -66,18 +73,25 @@ body = body.trimByPlane([a, b, -1], 0);
 // the supplied (unnormalized) normal vector, so we scale by |normal| to
 // get a wall thickness of WALL_T perpendicular to the keyboard surface.
 const planeNormalLen = Math.hypot(a, b, 1);
+// Projected bbox — used to size the cavity inside the projected outline.
+const _projXs = g.VOYAGER_OUTLINE_LEFT_PROJECTED.map(p => p[0]);
+const _projYs = g.VOYAGER_OUTLINE_LEFT_PROJECTED.map(p => p[1]);
+const projMinX = Math.min(..._projXs), projMaxX = Math.max(..._projXs);
+const projMinY = Math.min(..._projYs), projMaxY = Math.max(..._projYs);
+const projW = projMaxX - projMinX;
+const projD = projMaxY - projMinY;
 function buildCavity() {
-  // Cavity: inner outline = a roundedRect sized to fit inside the polygon
-  // outline with WALL_T margin.  This won't perfectly mirror the contour
-  // (the thumb-cluster step, etc.) but the bulk of the brick is hollowed
-  // and filament saving is ~80%.  A future iteration could compute a
-  // proper polygon offset.
-  const innerW = w - 2 * WALL_T - 6;   // extra margin around contour bulges
-  const innerD = d - 2 * WALL_T - 6;
+  // Cavity: roundedRect sized to fit inside the projected outline bbox with
+  // generous margin (WALL_T + bulge slack), centered on the projected bbox.
+  // Doesn't perfectly trace the contour, but the bulk of the brick is
+  // hollowed and filament saving is large.  A future iteration could
+  // compute a proper polygon offset.
+  const innerW = projW - 2 * WALL_T - 8;
+  const innerD = projD - 2 * WALL_T - 8;
   const innerR = Math.max(r - WALL_T, 0.5);
   let cav = roundedRect(innerW, innerD, innerR)
     .extrude(ceilingZ)
-    .translate(w / 2, d / 2, WALL_T);
+    .translate(projMinX + projW / 2, projMinY + projD / 2, WALL_T);
   cav = cav.trimByPlane([a, b, -1], WALL_T * planeNormalLen);
   return cav;
 }
@@ -154,7 +168,7 @@ const previewMagnets = [];
 if (Detail === "preview") {
   const magnetRadius = g.MAGNET_DIAMETER_MM / 2;
   const magnetThickness = g.MAGNET_THICKNESS_MM;
-  for (const [mx, my] of g.magnetWorldCenters()) {
+  for (const [mx, my] of magnetCenters) {
     const mz = g.plane(Side, mx, my);
     // Place the magnet cylinder so its top is on the tilted plane and its
     // body sits inside the brick (axis = keyboard normal).
@@ -169,7 +183,7 @@ if (Detail === "preview") {
 }
 
 if (Detail !== "preview") {
-for (const [mx, my] of g.magnetWorldCenters()) {
+for (const [mx, my] of magnetCenters) {
   const mz = g.plane(Side, mx, my);
   // Base of the cutting cylinder, in world coords: shift `pocketDepth` along
   // -kbN from the point on the plane.

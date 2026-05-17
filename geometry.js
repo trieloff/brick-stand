@@ -53,6 +53,27 @@ function plane(side, x, y) {
   return PLANE_A_LEFT * x + PLANE_B * y;
 }
 
+// Project a keyboard-local (x, y) on the keyboard's bottom plane into the
+// world's desk XY plane.  Applies the same rotation as voyager_mockup:
+// rotate -tent about Y, then +tilt about X.  Used to size the brick so its
+// XY footprint matches the keyboard's shadow at posture, not the keyboard's
+// native (un-tilted) outline.
+//
+// Closed form for a point at z=0 in keyboard-local frame:
+//   x_world = x * cos(tent)
+//   y_world = y * cos(tilt) − x * sin(tent) * sin(tilt)
+//   z_world = x * sin(tent) * cos(tilt) + y * sin(tilt)   (= a*x_world + b*y_world)
+const _tentRad = Math.atan(PLANE_A_LEFT);
+const _tiltRad = Math.atan(PLANE_B);
+const _ct = Math.cos(_tentRad), _st = Math.sin(_tentRad);
+const _cT = Math.cos(_tiltRad), _sT = Math.sin(_tiltRad);
+function projectKbToDesk(x, y) {
+  return [
+    x * _ct,
+    y * _cT - x * _st * _sT,
+  ];
+}
+
 // -------------- ZSA tripod-mount attachment interface --------------
 //
 // Center of the mount zone, in the Voyager-LEFT local frame.  Both halves
@@ -185,6 +206,13 @@ const VOYAGER_OUTLINE_LEFT = [
   [   0.01,   49.10],
 ];
 
+// Same outline projected onto the desk plane at the user's posture.
+// The brick footprint uses this — the brick's XY shadow matches the
+// keyboard's XY shadow at posture, not the keyboard's untilted shape.
+const VOYAGER_OUTLINE_LEFT_PROJECTED = VOYAGER_OUTLINE_LEFT.map(
+  ([x, y]) => projectKbToDesk(x, y),
+);
+
 // Top-edge break (solid-steel production target only — FDM omitted in this
 // solid-only revision).
 const TOP_CHAMFER_MM_PRODUCTION = 2.0;
@@ -236,6 +264,8 @@ module.exports = {
   // outline / breaks
   PERIMETER_CORNER_RADIUS_MM,
   VOYAGER_OUTLINE_LEFT,
+  VOYAGER_OUTLINE_LEFT_PROJECTED,
+  projectKbToDesk,
   TOP_CHAMFER_MM_PRODUCTION,
   // mirror
   mirrorAcrossXcenter,
