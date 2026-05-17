@@ -22,10 +22,11 @@ const Side = Param.choice("Side", "left", ["left", "right"]);
 // "finished" = features + top-edge fillet.  CLI + OCCT only.
 const Detail = Param.choice("Detail", "preview", ["preview", "features", "finished"]);
 // FDM prototype hollow: subtract a same-shape wedge inset by WALL_T from
-// every surface.  Saves ~80% of filament.  In preview the cavity renders
-// as a separate translucent child so its extent is visible without paying
-// for the boolean.  In features/finished it's a real subtract (CLI/OCCT).
+// every surface.  Saves ~80% of filament.  In features/finished it's a real
+// subtract (CLI/OCCT); in preview the cavity is invisible by default —
+// flip ShowCavity on to see its extent.
 const Hollow = Param.bool("Hollow", true);
+const ShowCavity = Param.bool("ShowCavity", false);
 // Peg square edge length, in mm.  The designer measured ~35 mm against the
 // physical ZSA tripod-mount plate.  Exposed as a slider so the brick can
 // be visually aligned against the imported Voyager mockup.
@@ -326,9 +327,10 @@ const cavityColor = "#2a2f36"; // dark — reads as void inside the body
 let result;
 if (Detail === "preview") {
   // group() preserves identities/colors without a boolean — fast in WASM.
-  // When hollow, render the body translucent so the cavity child shows
-  // through.  When solid, render opaque.
-  const bodyShape = (Hollow && cavity)
+  // Body is translucent only when ShowCavity is on; otherwise it's opaque
+  // and the cavity is hidden.
+  const showCav = Hollow && cavity && ShowCavity;
+  const bodyShape = showCav
     ? body.color(bodyColor).material({ opacity: 0.35 })
     : body.color(bodyColor);
   const children = [
@@ -336,7 +338,7 @@ if (Detail === "preview") {
     ...previewPegs.map((p, i) => ({ name: `peg-${i}`, shape: p.color(pegColor) })),
     ...previewMagnets.map((m, i) => ({ name: `magnet-${i}`, shape: m.color(magnetColor) })),
   ];
-  if (Hollow && cavity) {
+  if (showCav) {
     children.push({ name: "cavity", shape: cavity.color(cavityColor) });
   }
   if (ReserveNavigator && navigatorBar) {
