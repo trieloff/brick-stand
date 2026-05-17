@@ -30,7 +30,7 @@ const ShowCavity = Param.bool("ShowCavity", false);
 // Peg square edge length, in mm.  The designer measured ~35 mm against the
 // physical ZSA tripod-mount plate.  Exposed as a slider so the brick can
 // be visually aligned against the imported Voyager mockup.
-const PegSpacing = Param.number("PegSpacing", 35.0, { min: 20, max: 50, step: 0.1, unit: "mm" });
+const PegSpacing = Param.number("PegSpacing", 29.5, { min: 20, max: 50, step: 0.1, unit: "mm" });
 // Reserve a 20 × 80 × 3 mm strip along the keyboard's index-finger edge for
 // the ZSA Navigator (trackball) bar.  The bar sits flush underneath the
 // keyboard along that edge — the brick must not occupy that volume.  In

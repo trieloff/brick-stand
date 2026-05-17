@@ -86,7 +86,7 @@ const PEG_SPACING_MM = 33.26;
 const PEG_HALF_SPACING = PEG_SPACING_MM / 2; // 16.63
 
 // Peg shaft: Ø 2.15 mm × 1.5 mm tall, slip-fit into the keyboard receptacles.
-const PEG_DIAMETER_MM = 2.15;
+const PEG_DIAMETER_MM = 1.65;
 const PEG_HEIGHT_MM = 1.5;
 
 // 4 magnets in a diamond, r = 9 mm from the zone center, at the cardinal
