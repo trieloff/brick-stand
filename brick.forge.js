@@ -40,7 +40,11 @@ const PegSpacing = Param.number("PegSpacing", 30.0, { min: 20, max: 50, step: 0.
 // preview the bar is rendered as a separate orange visualization; in
 // features/finished it's a real subtract.
 const ReserveNavigator = Param.bool("ReserveNavigator", true);
-const NavigatorInset = Param.number("NavigatorInset", 20.0, { min: 0, max: 80, step: 0.5, unit: "mm" });
+// Bar's bottom-left corner in keyboard-local XY (front-pinky-corner origin).
+// Defaults place it flush against the keyboard's inner edge (X ≈ 96.18 mm,
+// outer face at 116.18 mm) and 20 mm forward of the rear edge.
+const NavigatorX = Param.number("NavigatorX", 96.18, { min: 0, max: 138, step: 0.5, unit: "mm" });
+const NavigatorY = Param.number("NavigatorY", 36.87, { min: 0, max: 137, step: 0.5, unit: "mm" });
 
 const w = g.FOOTPRINT_WIDTH;
 const d = g.FOOTPRINT_DEPTH;
@@ -74,16 +78,9 @@ const magnetCenters = magnetCentersKb.map(([x, y]) => g.projectKbToDesk(x, y));
 const NAV_DEPTH_X  = 20;
 const NAV_LENGTH_Y = 80;
 const NAV_THICK_Z  = 3;
-const INDEX_SIDE_X = 116.18; // straight inner edge of the bottom plate
 function buildNavigatorBar() {
-  // bar's rear edge sits `NavigatorInset` mm in from the keyboard's rear,
-  // extending NAV_LENGTH_Y forward from there.
   let bar = box(NAV_DEPTH_X, NAV_LENGTH_Y, NAV_THICK_Z)
-    .translate(
-      INDEX_SIDE_X - NAV_DEPTH_X,
-      g.FOOTPRINT_DEPTH - NavigatorInset - NAV_LENGTH_Y,
-      -NAV_THICK_Z,
-    );
+    .translate(NavigatorX, NavigatorY, -NAV_THICK_Z);
   bar = bar.rotate([0, 1, 0], -g.TENT_DEG, { pivot: [0, 0, 0] });
   bar = bar.rotate([1, 0, 0],  g.TILT_DEG, { pivot: [0, 0, 0] });
   return bar;
